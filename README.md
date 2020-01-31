@@ -1,68 +1,177 @@
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This project provides one way to add Playwright to a `create-react-app` generated app. It uses a Jest test runner, follows the page object model and shows how easy it is to get started with Playwright.
 
-## Available Scripts
+# Contents
 
-In the project directory, you can run:
+* [Why Playwright?](#why-playwright)
+* [Running Specs](#running-specs)
+* [Writing Specs and Page Objects](#writing-specs-and-page-objects)
+* [Adding to an Existing Project](#adding-to-an-existing-project)
 
-### `yarn start`
+# Why Playwright?
 
-Runs the app in the development mode.<br />
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+The same team behind Puppeteer have recently released [Playwright](https://github.com/microsoft/playwright), a similar Node library with two notable differences – it offers cross-browser functionality out of the box and is from Microsoft, not Google.
 
-The page will reload if you make edits.<br />
-You will also see any lint errors in the console.
+Playwright is essentially Puppeteer with cross-browser support – Chromium (Chrome, Edge), Webkit (Safari), and Firefox browsers can now be automated with a single API.
 
-### `yarn test`
+# Running Specs
 
-Launches the test runner in the interactive watch mode.<br />
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Let’s take a look at a sample project that’s set-up with Playwright. If you want to add this set-up to your current project, you can skip this section and go straight to [Adding to an Existing Project](#adding-to-an-existing-project).
 
-### `yarn build`
+Open a new terminal and run –
 
-Builds the app for production to the `build` folder.<br />
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+$ git clone https://github.com/kyleaday/react-app-playwright
+$ cd react-app-playwright
+$ npm install
+```
 
-The build is minified and the filenames include the hashes.<br />
-Your app is ready to be deployed!
+In order to improve test readability and maintainability, I created a `playwright.config.js` file to set browser, launch and context options:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```js
+// e2e/playwright.config.js
 
-### `yarn eject`
+import { chromium, firefox, webkit, devices } from 'playwright';
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+const iPhone = devices['iPhone 6'];
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+module.exports = {
+    browserType: webkit,
+    launchConfig: {
+        headless: false,
+        slowMo: 10
+    },
+    contextConfig: {
+        viewport: iPhone.viewport,
+        userAgent: iPhone.userAgent
+    }
+};
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (Webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+For example, this configuration sets `Webkit` as the browser type, turns off headless mode and sets a `slowMo` time. It also sets the context to emulate an iPhone 6, so when the tests are run, the screen-size adjusts accordingly. Other device properties can be set here, such as geolocation, permissions, etc.
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+As Playwright doesn’t automatically use my custom configuration file, I must pass these variables into the `launch()` and `newContext()` functions, which will be discussed further in [Writing Specs and Page Objects](#writing-specs-and-page-objects).
 
-## Learn More
+The `jest.config.js` file is automatically used when running Jest, and this is where I’ve set the global `baseURL: “http://localhost:3000”`.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Now we’re ready to run some tests. Let’s start the app –
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```bash
+$ npm start
+```
 
-### Code Splitting
+And open a new terminal to run the tests –
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/code-splitting
+```bash
+$ npm run e2e
+```
 
-### Analyzing the Bundle Size
+The script `e2e` can be found in the `package.json`. It runs `cd e2e && jest`, which changes our directory to `e2e`, so Jest will use the correct configuration.
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size
+As we’re not running headless, the browser will load onscreen, navigate to the page and perform the tests.
 
-### Making a Progressive Web App
+# Writing Specs and Page Objects
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app
+This project follows the page object model – the UI structure has been separated from the specs (or tests) for easier readability and maintainability. Spec files can be found in `e2e/specs`, and the accompanying page objects are in `e2e/pageObjects`. 
 
-### Advanced Configuration
+Let’s look at the spec and page object for `index.js` –
+ 
+```js
+// e2e/specs/index.js
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/advanced-configuration
+import { load, close, getTitle } from '../pageObjects';
 
-### Deployment
+describe("React App", () => {
+    beforeEach(async () => {
+        await load();
+    });
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/deployment
+    afterEach(async () => {
+        await close();
+    });
 
-### `yarn build` fails to minify
+    it("should be titled 'React App'", async () => {
+        expect(await getTitle()).toBe('React App');
+    });
+});
+```
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify
+This spec imports the `load` method and the functions `close` and `getTitle` from the `index.js` page object file.
+
+Jest API globals are used - `describe` groups the tests, the browser loads `beforeEach` test, and then closes `afterEach` test. The `it` method runs the tests and `expect` gives us access to validation matchers, in this example `toBe`.
+
+The page object model makes the spec easy to read – it loads the page, gets the title, checks that the actual title matches the expected title, and finally closes the browser.
+
+Let’s look at the page object –
+
+```js
+// e2e/pageObjects/index.js
+
+import { browserType, launchConfig, contextConfig } from '../playwright.config'
+
+const rootSelector = '#root';
+let browser, context, page;
+
+export const root = async () => await page.$(rootSelector);
+
+export const load = async () => {
+    browser = await browserType.launch(launchConfig);
+    context = await browser.newContext(contextConfig);
+    page = await context.newPage(baseURL);
+};
+
+export const close = async () => await browser.close();
+
+export const getTitle = async () => await page.title();
+```
+
+As mentioned earlier, Playwright doesn’t automatically use the `playwright.config.js` file, so our configuration variables must be imported before they can be used when launching our browser.
+
+Let's look closer at the `load` method -
+
+```js
+export const load = async () => {
+    browser = await browserType.launch(launchConfig);
+    context = await browser.newContext(contextConfig);
+    page = await context.newPage(baseURL);
+};
+```
+
+The `load` method launches our `browserType` with the `launchConfig`, sets the context with the `contextConfig` and navigates to the `baseURL` page. The variables `browser`, `context` and `page` are then used elsewhere in the page object, such as `browser.close()`, `page.$(selector)` and `page.title()`.
+
+Like Puppeteer, the Playwright API has similar classes with methods that allow us to interact with a page. Playwright can automate most browser interactions, such as filling out forms, entering keystrokes, moving the mouse, and more. A list can be found [here](https://github.com/microsoft/playwright/blob/master/docs/api.md)
+
+# Adding to an existing project:
+
+To use this set-up on existing projects –
+
+* Copy the e2e folder into the root of the project -
+
+```bash
+$ cp -r react-app-playwright/e2e <react-app>
+```
+
+* Install the additional dev dependencies -
+
+```bash
+$ npm install --save-dev playwright
+```
+
+* Add the following script in the project’s `package.json` -
+
+```js
+{
+  // ...
+  "scripts": {
+    // ...
+    "e2e": "cd e2e && jest",
+  }
+}
+```
+
+# Playwright or Puppeteer?
+
+That is the question. Even though Playwright does not have a `jest-puppeteer` package equivalent (yet!), it is just as easy as to set-up. Puppeteer users will also be familiar with the Playwright API.
+
+However, I have experienced slight teething problems with Playwright. For example, I’ve noticed that `slowMo` can be temperamental, and if set too high the tests often fail. The consistency of `slowMo` also seems to vary from browser to browser.
+
+Puppeteer is the more established project at the moment, but if you need cross-browser functionality, then perhaps it’s time to make the switch to Playwright.
