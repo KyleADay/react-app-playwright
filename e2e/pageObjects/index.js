@@ -8,7 +8,8 @@ export const root = async () => await page.$(rootSelector);
 export const load = async () => {
     browser = await browserType.launch(launchConfig);
     context = await browser.newContext(contextConfig);
-    page = await context.newPage(baseURL);
+    page = await context.newPage();
+    await page.goto(baseURL);
 };
 
 export const close = async () => await browser.close();

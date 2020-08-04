@@ -33,6 +33,6 @@
     ]
   },
   "devDependencies": {
-    "playwright": "^0.9.24"
+    "playwright": "^1.2.1"
   }
 }
