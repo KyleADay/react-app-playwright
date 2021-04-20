@@ -6,7 +6,7 @@ module.exports = {
     browserType: webkit,
     launchConfig: {
         headless: false,
-        slowMo: 10
+        slowMo: 300
     },
     contextConfig: {
         viewport: iPhone.viewport,
