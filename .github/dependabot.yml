@@ -3,7 +3,7 @@
 
 version: 2
 updates:
-   - package-ecosystem: "npm"
+  - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -11,4 +11,4 @@ updates:
   - package-ecosystem: "yarn"
     directory: "/"
     schedule:
-          interval: "weekly"
+      interval: "weekly"
